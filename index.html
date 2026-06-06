@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ashta Changa</title>
+    <style>
+        /* BACKGROUND & LAYOUT */
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background-color: #2f3640; font-family: Arial, sans-serif; margin: 0; overflow: hidden; }
+
+        /* --- SPLASH SCREEN ANIMATION --- */
+        #splashScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #2f3640; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease; }
+        #splashTitle { font-size: 50px; color: #f1c40f; text-shadow: 0 0 20px rgba(241,196,15,0.8); position: relative; z-index: 2; animation: textPulse 1s ease-in-out infinite alternate; margin-bottom: -40px; font-weight: bold; letter-spacing: 2px;}
+        #splashBoard { display: grid; grid-template-columns: repeat(5, 45px); grid-template-rows: repeat(5, 45px); gap: 3px; background: #bdc3c7; padding: 5px; border-radius: 4px; border: 3px solid #7f8c8d; transform: scale(0); opacity: 0; animation: boardEmerge 1s 0.8s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative;}
+        .splash-sq { background: #353b48; border-radius: 3px; }
+        .splash-safe { background: #e74c3c; }
+        .splash-center { background: conic-gradient(from 315deg, #e74c3c 0deg 90deg, #f1c40f 90deg 180deg, #3498db 180deg 270deg, #2ecc71 270deg 360deg); }
+        .splash-kodi-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; z-index: 3; }
+        .splash-kodi { width: 14px; height: 22px; border-radius: 10px 10px 10px 10px / 14px 14px 10px 10px; background-color: #d4a373; border: 1px solid #c98a50; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.5); opacity: 0; }
+        #splashResult { font-size: 45px; color: #e74c3c; font-weight: 900; position: absolute; bottom: 15%; opacity: 0; text-shadow: 0 0 15px white, 2px 2px 0px #fff, -2px -2px 0px #fff; transform: scale(0); z-index: 5;}
+
+        @keyframes textPulse { 0% { transform: scale(1); } 100% { transform: scale(1.1); text-shadow: 0 0 35px rgba(241,196,15,1); } }
+        @keyframes boardEmerge { 0% { transform: scale(0) rotate(-45deg); opacity: 0; margin-top: -100px; } 100% { transform: scale(1) rotate(0deg); opacity: 1; margin-top: 30px;} }
+        @keyframes kodiRollDrop { 0% { transform: translateY(-400px) rotate(0deg) scale(1.5); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(0) rotate(1080deg) scale(1); opacity: 1; } }
+        @keyframes splashResultPop { 0% { transform: scale(0) rotate(-10deg); opacity: 0; } 70% { transform: scale(1.3) rotate(5deg); opacity: 1; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
+
+        /* --- STEP-BY-STEP MENU --- */
+        #setupScreen { display: none; background-color: #1a252f; padding: 30px; border-radius: 15px; text-align: center; color: white; box-shadow: 0px 10px 20px rgba(0,0,0,0.5); width: 85%; max-width: 400px; max-height: 95vh; overflow-y: auto; z-index: 100; }
+        #setupScreen h1 { color: #f1c40f; margin-top: 0; }
+        .step-container { display: none; flex-direction: column; gap: 15px; }
+        .step-container.active { display: flex; }
+        .setup-row label { font-weight: bold; font-size: 16px; display: block; margin-bottom: 5px; text-align: left;}
+        select { width: 100%; padding: 10px; border-radius: 5px; font-size: 16px; background: #34495e; color: white; border: 1px solid #7f8c8d; }
+        .player-slot { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 5px; margin-top: 5px;}
+        .player-slot select { width: 55%; padding: 5px; }
+        
+        .menu-btn { width: 100%; padding: 12px; font-size: 18px; background-color: #e67e22; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight:bold; margin-top: 10px;}
+        .menu-btn.secondary { background-color: #34495e; }
+
+        /* IN-GAME SETTINGS MODAL */
+        #settingsModal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a252f; padding: 20px; border-radius: 15px; color: white; z-index: 1000; width: 85%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 2px solid #f1c40f;}
+        .settings-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; background: #2c3e50; padding: 10px; border-radius: 8px;}
+        .settings-row button { padding: 5px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; color: white;}
+        .btn-ai { background-color: #3498db; } .btn-remove { background-color: #e74c3c; }
+        input[type="range"] { width: 140px; accent-color: #3498db; cursor: pointer; }
+
+        /* GAME UI */
+        #gameScreen { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative; gap: 5px; }
+        #boardWrapper { position: relative; margin: 70px 0; display: flex; justify-content: center; align-items: center; }
+
+        #board { display: grid; grid-template-columns: repeat(5, min(18vw, 85px)); grid-template-rows: repeat(5, min(18vw, 85px)); gap: 4px; background-color: #bdc3c7; padding: 6px; border-radius: 4px; border: 4px solid #bdc3c7; box-shadow: 0px 15px 35px rgba(0,0,0,0.8); position: relative; z-index: 10; }
+        
+        .square { background: #353b48; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; position: relative; padding: 2px; box-shadow: inset 0px 0px 10px rgba(0,0,0,0.6); }
+        .safe { background: linear-gradient(to bottom right, transparent 47%, #bdc3c7 48%, #bdc3c7 52%, transparent 53%), linear-gradient(to top right, transparent 47%, #bdc3c7 48%, #bdc3c7 52%, transparent 53%), #353b48; } 
+        .center { background: conic-gradient(from 315deg, #e74c3c 0deg 90deg, #f1c40f 90deg 180deg, #3498db 180deg 270deg, #2ecc71 270deg 360deg); box-shadow: inset 0px 0px 15px rgba(0,0,0,0.8); } 
+
+        /* TOKENS & CROWDED BOXES */
+        .token { width: min(5vw, 24px); height: min(5vw, 24px); border-radius: 50%; border: 2px solid white; box-shadow: 0px 3px 6px rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; font-size: min(3.5vw, 14px); color: white; text-shadow: 1px 1px 2px black; transition: transform 0.2s; }
+        .token.crowded { transform: scale(0.65); margin: -2px; } 
+        
+        .blue-player { background-color: #3498db; } .yellow-player { background-color: #f1c40f; } .red-player { background-color: #e74c3c; } .green-player { background-color: #2ecc71; }
+
+        /* CORNER PANELS */
+        #panel-1 { --p-color: #3498db; --p-rgb: 52, 152, 219; bottom: -65px; left: -5px; }
+        #panel-2 { --p-color: #f1c40f; --p-rgb: 241, 196, 15; bottom: -65px; right: -5px; }
+        #panel-3 { --p-color: #e74c3c; --p-rgb: 231, 76, 60; top: -65px; right: -5px; transform: rotate(180deg); }
+        #panel-4 { --p-color: #2ecc71; --p-rgb: 46, 204, 113; top: -65px; left: -5px; transform: rotate(180deg); }
+
+        .player-panel { position: absolute; display: flex; flex-direction: row; align-items: center; gap: 15px; z-index: 50; padding: 0; background: transparent; border: 2px solid transparent; border-radius: 25px; transition: 0.3s;}
+        .player-panel.active { border-color: var(--p-color); box-shadow: 0 0 15px rgba(var(--p-rgb), 0.7); background: rgba(26, 37, 47, 0.95); padding: 6px 12px; }
+        .player-panel.active.timer-active { border-color: transparent !important; } 
+        
+        /* FIXED: BULLETPROOF 2-PLAYER DYNAMIC CENTERING */
+        .two-player-mode .panel-1 { left: 0 !important; right: 0 !important; margin: 0 auto !important; width: fit-content !important; justify-content: center; }
+        .two-player-mode .panel-3 { left: 0 !important; right: 0 !important; margin: 0 auto !important; width: fit-content !important; justify-content: center; transform: rotate(180deg); }
+        
+        /* VICTORY SYMBOL REPLACEMENT */
+        .victory-badge { font-size: min(8vw, 36px); text-shadow: 0px 2px 5px black; filter: drop-shadow(0 0 10px gold); animation: popUp 0.5s ease-out; }
+
+        /* KODI BUTTONS & ROLL NUMBER */
+        .kodi-btn { display: flex; gap: 4px; padding: 10px 14px; border-radius: 12px; background: #1a252f; border: 3px solid var(--p-color); opacity: 0.5; width: max-content; justify-content: center; align-items: center; transition: 0.3s; }
+        .kodi-btn.enabled { pointer-events: auto; opacity: 1; cursor: pointer;}
+        .kodi-btn.roll-active { transform: translateY(35px) scale(1.4); background: #2c3e50; box-shadow: 0 10px 20px rgba(0,0,0,0.7); z-index: 100; }
+        .blink-roll { animation: rollPromptBlink 0.8s infinite alternate; border-color: var(--p-color); }
+        @keyframes rollPromptBlink { 0% { box-shadow: 0 0 5px var(--p-color); } 100% { box-shadow: 0 0 20px var(--p-color), inset 0 0 10px var(--p-color); } }
+
+        .kodi { width: 12px; height: 18px; border-radius: 10px 10px 10px 10px / 14px 14px 10px 10px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+        .open { background-color: #ecf0f1; border: 1px solid #bdc3c7; position: relative; }
+        .open::after { content: ''; position: absolute; top: 2px; bottom: 2px; left: 4.5px; width: 1.5px; background-color: #2c3e50; }
+        .closed { background-color: #d4a373; border: 1px solid #c98a50; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3); }
+
+        .roll-number { font-size: min(6vw, 22px); font-weight: 900; color: var(--p-color); text-shadow: 0px 2px 4px rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; width: 42px; height: 42px; background: #1a252f; border-radius: 12px; border: 3px solid var(--p-color); flex-direction: column; line-height: 1;}
+        .rem-roll { font-size: 10px; color: white; opacity: 0.8;} /* Remaining roll indicator */
+        
+        @keyframes kodiShake { 0%, 100% { transform: rotate(-15deg) scale(0.9); } 50% { transform: rotate(15deg) scale(1.1); } }
+        .rolling-anim { animation: kodiShake 0.15s infinite; }
+        .pop-anim { animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popUp { 0% { transform: scale(0.1); opacity: 0;} 60% { transform: scale(1.2); opacity: 1;} 100% { transform: scale(1); } }
+
+        .jodi-action-btn { width: 42px; height: 42px; border-radius: 12px; border: 3px solid var(--p-color); display: none; align-items: center; justify-content: center; color: white; font-size: min(5vw, 22px); cursor: pointer; box-shadow: 0px 4px 8px rgba(0,0,0,0.7); text-shadow: 1px 1px 2px black; transition: 0.2s; }
+
+        /* ARROW OVERLAYS FOR CHOICES */
+        .arrow-overlay { position: absolute; z-index: 100; font-size: 40px; color: white; text-shadow: 0 0 10px black, 0 0 20px var(--p-color); cursor: pointer; animation: arrowBlink 1s infinite alternate; }
+        @keyframes arrowBlink { 0% { transform: scale(1); } 100% { transform: scale(1.2); } }
+
+        /* CENTER CELEBRATION */
+        #centerOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 10; pointer-events: none; font-size: 40px;}
+        .celebrate-anim { animation: explode 1.5s ease-out forwards; }
+        @keyframes explode { 0% { transform: scale(0.1); opacity: 1; } 50% { transform: scale(2); opacity: 1; } 100% { transform: scale(3) translateY(-20px); opacity: 0; } }
+
+        /* MISC UI */
+        .top-nav { position: absolute; top: 10px; right: 10px; z-index: 200; display: flex; gap: 10px;}
+        .icon-btn { background: #34495e; border: 2px solid white; color: white; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center;}
+        #rollResult { color: white; margin: 0; font-size: 16px; font-weight: bold; padding: 0 10px; text-align: center; min-height: 22px; z-index: 20;}
+        #deadBoxContainer { width: 90%; max-width: 250px; background-color: #1a252f; border-radius: 8px; margin-top: 10px; padding: 6px; text-align: center; border: 2px dashed #e74c3c; z-index: 20; display: none;}
+        #deadBoxContainer h4 { color: #e74c3c; margin: 0 0 3px 0; font-size: 12px; text-transform: uppercase;}
+        #deadBox { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; min-height: 20px; }
+        .hopping { animation: hop 0.25s ease-in-out; z-index: 50; }
+        @keyframes hop { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-20px) scale(1.3); } }
+        .clickable { cursor: pointer; box-shadow: 0px 0px 12px 6px rgba(255, 255, 255, 0.8); transform: scale(1.2); z-index: 20; }
+        .timer-blink { animation: timerBlink 0.5s infinite !important; stroke: #e74c3c !important; }
+        @keyframes timerBlink { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.1; } }
+
+        /* LOCKDOWN RULE ANIMATION */
+        .looser-anim { animation: shake 0.5s infinite; border: 4px solid red !important; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    </style>
+</head>
+<body>
+
+    <!-- SPLASH SCREEN INTRO ANIMATION -->
+    <div id="splashScreen">
+        <div id="splashTitle">Ashta Changa</div>
+        <div id="splashBoard">
+            <div class="splash-kodi-wrapper">
+                <div class="splash-kodi" id="sk1"></div><div class="splash-kodi" id="sk2"></div>
+                <div class="splash-kodi" id="sk3"></div><div class="splash-kodi" id="sk4"></div>
+            </div>
+        </div>
+        <div id="splashResult">ASHTA!</div>
+    </div>
+
+    <!-- STEP-BY-STEP SETUP SCREEN -->
+    <div id="setupScreen">
+        <h1 id="lblTitle">Ashta Changa</h1>
+        
+        <div id="step1" class="step-container active">
+            <div class="setup-row">
+                <label id="lblLang">Language / भाषा</label>
+                <select id="langSelect" onchange="updateUI()">
+                    <option value="EN">English</option>
+                    <option value="HI">हिन्दी (Hindi)</option>
+                </select>
+            </div>
+            <div class="setup-row">
+                <label id="lblMode">Game Mode</label>
+                <select id="gameModeSelect">
+                    <option value="KIDS" id="optKids">Kids (Auto-Respawn)</option>
+                    <option value="PRO" id="optPro">Pro (Buy tokens for 4 points)</option>
+                </select>
+            </div>
+            <button class="menu-btn" id="btnNext" onclick="nextStep(2)">Next</button>
+            <button class="menu-btn secondary" id="btnLoadSave" onclick="loadGame()" style="display:none;">Load Saved Game</button>
+        </div>
+
+        <div id="step2" class="step-container">
+            <div class="setup-row">
+                <label id="lblPlayers">How Many Players?</label>
+                <select id="playerCountSelect" onchange="updatePlayerSlots()">
+                    <option value="2" id="optP2">2 Players</option>
+                    <option value="3" id="optP3">3 Players</option>
+                    <option value="4" id="optP4" selected>4 Players</option>
+                </select>
+            </div>
+            <div id="playerConfigs"></div>
+            <button class="menu-btn" id="btnStart" onclick="startGame()">Start Game</button>
+            <button class="menu-btn secondary" id="btnBack" onclick="nextStep(1)">Back</button>
+        </div>
+    </div>
+
+    <!-- IN-GAME SETTINGS MODAL -->
+    <div id="settingsModal">
+        <h2 id="lblSettings" style="margin-top:0; color:#f1c40f;">Settings</h2>
+        <div id="settingsPlayerList"></div>
+        <button class="menu-btn" id="btnSaveGame" onclick="saveGame()" style="margin-top: 20px;">💾 Save Game</button>
+        <button class="menu-btn secondary" id="btnCloseSet" onclick="document.getElementById('settingsModal').style.display='none'">Close</button>
+    </div>
+
+    <!-- MAIN GAME SCREEN -->
+    <div id="gameScreen">
+        <div class="top-nav">
+            <div class="icon-btn" id="soundToggleBtn" onclick="toggleSound()">🔊</div>
+            <div class="icon-btn" onclick="openSettings()">⚙️</div>
+        </div>
+
+        <div id="boardWrapper">
+            <div class="player-panel panel-4" id="panel-4">
+                <div class="victory-badge" id="badge-4" style="display:none;"></div>
+                <div class="kodi-btn roll-btn" id="roll-btn-4" style="display:none;"><div class="kodi closed"></div><div class="kodi open"></div><div class="kodi closed"></div><div class="kodi open"></div></div>
+                <div class="roll-number" id="roll-num-4"></div>
+                <div class="jodi-action-btn" id="jodi-btn-4" style="display:none;">★</div>
+            </div>
+            <div class="player-panel panel-3" id="panel-3">
+                <div class="jodi-action-btn" id="jodi-btn-3" style="display:none;">★</div>
+                <div class="roll-number" id="roll-num-3"></div>
+                <div class="kodi-btn roll-btn" id="roll-btn-3" style="display:none;"><div class="kodi closed"></div><div class="kodi open"></div><div class="kodi closed"></div><div class="kodi open"></div></div>
+                <div class="victory-badge" id="badge-3" style="display:none;"></div>
+            </div>
+            <div class="player-panel panel-1" id="panel-1">
+                <div class="victory-badge" id="badge-1" style="display:none;"></div>
+                <div class="kodi-btn roll-btn" id="roll-btn-1" style="display:none;"><div class="kodi closed"></div><div class="kodi open"></div><div class="kodi closed"></div><div class="kodi open"></div></div>
+                <div class="roll-number" id="roll-num-1"></div>
+                <div class="jodi-action-btn" id="jodi-btn-1" style="display:none;">★</div>
+            </div>
+            <div class="player-panel panel-2" id="panel-2">
+                <div class="jodi-action-btn" id="jodi-btn-2" style="display:none;">★</div>
+                <div class="roll-number" id="roll-num-2"></div>
+                <div class="kodi-btn roll-btn" id="roll-btn-2" style="display:none;"><div class="kodi closed"></div><div class="kodi open"></div><div class="kodi closed"></div><div class="kodi open"></div></div>
+                <div class="victory-badge" id="badge-2" style="display:none;"></div>
+            </div>
+
+            <!-- BOARD -->
+            <div id="board"><div id="centerOverlay"></div></div>
+            <div id="arrowContainer"></div>
+        </div>
+
+        <h3 id="rollResult">Tap Kodis to start!</h3>
+        <div id="deadBoxContainer"><h4 id="lblGraveyard">Graveyard</h4><div id="deadBox"></div></div>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div id="gameOverScreen" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center;">
+        <h1 id="lblGameOver" style="color: #f1c40f; font-size: 40px; margin-bottom: 10px;">GAME OVER!</h1>
+        <ul id="leaderboardList" style="font-size: 24px; line-height: 2; list-style: none; padding: 0;"></ul>
+        <button class="menu-btn" id="btnReplay" onclick="location.reload()" style="max-width:200px;">Main Menu</button>
+    </div>
+
+    <script>
+        // --- SPLASH SCREEN INITIALIZATION ---
+        window.onload = () => {
+            const sb = document.getElementById('splashBoard');
+            for(let i=0; i<25; i++) {
+                let sq = document.createElement('div');
+                sq.className = 'splash-sq';
+                if(i===2 || i===10 || i===14 || i===22) sq.classList.add('splash-safe');
+                if(i===12) sq.classList.add('splash-center');
+                sb.appendChild(sq);
+            }
+            
+            setTimeout(() => {
+                document.querySelectorAll('.splash-kodi').forEach((k, i) => {
+                    k.style.animation = `kodiRollDrop 0.8s ${i * 0.15}s forwards ease-out`;
+                });
+            }, 1600);
+
+            setTimeout(() => {
+                document.getElementById('splashResult').style.animation = 'splashResultPop 0.6s forwards';
+            }, 2700);
+
+            setTimeout(() => {
+                document.getElementById('splashScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splashScreen').style.display = 'none';
+                    document.getElementById('setupScreen').style.display = 'block';
+                    updatePlayerSlots(); 
+                }, 500);
+            }, 4500);
+        };
+
+        // --- VOLUME & SOUND ENGINE ---
+        let masterVolume = 1.0;
+        let lastVolume = 1.0;
+
+        function updateVolume(val) {
+            masterVolume = parseFloat(val);
+            document.getElementById('soundToggleBtn').innerText = masterVolume === 0 ? '🔇' : (masterVolume < 0.5 ? '🔉' : '🔊');
+            if (masterVolume > 0) lastVolume = masterVolume;
+            SoundEngine.init(); 
+        }
+
+        function toggleSound() {
+            let slider = document.getElementById('volumeSlider');
+            if (masterVolume > 0) {
+                updateVolume(0);
+                if(slider) slider.value = 0;
+            } else {
+                updateVolume(lastVolume || 1);
+                if(slider) slider.value = lastVolume || 1;
+            }
+        }
+
+        const SoundEngine = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            playTone: function(freq, type, duration, vol=0.1) {
+                if(masterVolume === 0 || !this.ctx) return;
+                let finalVol = vol * masterVolume;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(finalVol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
+            },
+            playHop: function() { this.playTone(600, 'sine', 0.1, 0.05); },
+            playKill: function() { 
+                this.playTone(150, 'sawtooth', 0.3, 0.2); 
+                setTimeout(() => this.playTone(100, 'square', 0.4, 0.2), 100);
+            },
+            playJodi: function() { 
+                this.playTone(400, 'square', 0.1, 0.05); 
+                setTimeout(() => this.playTone(600, 'square', 0.15, 0.05), 100); 
+            },
+            playVictory: function() {
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => setTimeout(() => this.playTone(freq, 'square', 0.2, 0.1), i * 120));
+            },
+            playLoser: function() {
+                this.playTone(200, 'sawtooth', 0.4, 0.1);
+                setTimeout(() => this.playTone(150, 'sawtooth', 0.8, 0.15), 300);
+            },
+            playRoll: function() {
+                for(let i=0; i<6; i++) setTimeout(() => this.playTone(700 + Math.random()*300, 'triangle', 0.05, 0.05), i*60);
+            }
+        };
+
+        // --- TRANSLATIONS WIRING ---
+        const TEXT = {
+            EN: { 
+                title: "Ashta Changa", lblLang: "Language / भाषा", lblMode: "Game Mode", 
+                kids: "Kids (Auto-Respawn)", pro: "Pro (Buy tokens for 4 points)",
+                btnNext: "Next", btnLoadSave: "Load Saved Game", lblPlayers: "How Many Players?",
+                p2: "2 Players", p3: "3 Players", p4: "4 Players", btnStart: "Start Game", btnBack: "Back",
+                player: "Player", turn: "Turn", tapRoll: "Tap Kodis to start!", compRoll: "Computer is playing...",
+                rolled: "You rolled a ", noMoves: " No valid moves! Skipping turn.", action: " Select an action.",
+                bypassed: " Bypassed! 7 Laps applied.", reached: " 🏆 Reached Center!", kill: " ⚔️ KILL!",
+                graveyard: "Graveyard", human: "Human", ai: "Computer", remove: "Remove", auto: " (Auto-moving...)",
+                jodiFormed: "🔗 JODI FORMED!", revived: "👼 Revived token!", bounced: " (Bounced! Kill needed to enter inner ring.)",
+                revolving: " (Revolving... laps left)", cleared: " (Penalty cleared! Eligible for Center next turn.)",
+                overshot: " (Overshot!)", finished: " 🎉 Finished!", splattered: " 💀 Splattered against a Jodi!",
+                timeUp: " (Time's up! Auto-playing...)", gameOver: "GAME OVER!", btnReplay: "Main Menu",
+                lblSettings: "Settings", btnSaveGame: "💾 Save Game", btnCloseSet: "Close", swap: "Swap",
+                volume: "Volume"
+            },
+            HI: { 
+                title: "अष्ट चंगा", lblLang: "भाषा / Language", lblMode: "खेल का प्रकार", 
+                kids: "बच्चे (ऑटो-रिस्पॉन)", pro: "प्रो (4 अंक से टोकन खरीदें)",
+                btnNext: "अगला", btnLoadSave: "सेव गेम खेलें", lblPlayers: "कितने खिलाड़ी?",
+                p2: "2 खिलाड़ी", p3: "3 खिलाड़ी", p4: "4 खिलाड़ी", btnStart: "शुरू करें", btnBack: "पीछे",
+                player: "खिलाड़ी", turn: "की बारी", tapRoll: "कौड़ी छुएं!", compRoll: "कंप्यूटर खेल रहा है...",
+                rolled: "अंक है ", noMoves: " कोई चाल नहीं! बारी छूटी।", action: " चाल चुनें।",
+                bypassed: " केंद्र छोड़ा! 7 चक्कर का दंड।", reached: " 🏆 केंद्र में!", kill: " ⚔️ मार गिराया!",
+                graveyard: "कब्रिस्तान", human: "इंसान", ai: "कंप्यूटर", remove: "हटाएं", auto: " (ऑटो-चाल...)",
+                jodiFormed: "🔗 जोड़ी बन गई!", revived: "👼 टोकन वापस आया!", bounced: " (वापस! अंदर जाने के लिए मारना जरूरी है।)",
+                revolving: " (चक्कर लगा रहे हैं... राउंड बाकी)", cleared: " (दंड समाप्त! अब केंद्र में जा सकते हैं।)",
+                overshot: " (आगे निकल गए!)", finished: " 🎉 खेल पूरा किया!", splattered: " 💀 जोड़ी से टकराकर खत्म!",
+                timeUp: " (समय समाप्त! ऑटो-प्ले...)", gameOver: "खेल खत्म!", btnReplay: "मुख्य मेनू",
+                lblSettings: "सेटिंग्स", btnSaveGame: "💾 गेम सेव करें", btnCloseSet: "बंद करें", swap: "बदलें",
+                volume: "आवाज़"
+            }
+        };
+        const colorNamesHI = { 'Blue': 'नीला', 'Yellow': 'पीला', 'Red': 'लाल', 'Green': 'हरा' };
+        
+        let currentLang = 'EN';
+        function getText(key) { return TEXT[currentLang][key] || key; }
+        function getPlayerName(pName) { return currentLang === 'HI' ? colorNamesHI[pName] : pName; }
+
+        function updateUI() {
+            currentLang = document.getElementById('langSelect').value;
+            document.getElementById('lblTitle').innerText = getText('title');
+            document.getElementById('lblLang').innerText = getText('lblLang');
+            document.getElementById('lblMode').innerText = getText('lblMode');
+            document.getElementById('optKids').innerText = getText('kids');
+            document.getElementById('optPro').innerText = getText('pro');
+            document.getElementById('btnNext').innerText = getText('btnNext');
+            document.getElementById('btnLoadSave').innerText = getText('btnLoadSave');
+            document.getElementById('lblPlayers').innerText = getText('lblPlayers');
+            document.getElementById('optP2').innerText = getText('p2');
+            document.getElementById('optP3').innerText = getText('p3');
+            document.getElementById('optP4').innerText = getText('p4');
+            document.getElementById('btnStart').innerText = getText('btnStart');
+            document.getElementById('btnBack').innerText = getText('btnBack');
+            document.getElementById('lblGraveyard').innerText = getText('graveyard');
+            document.getElementById('lblGameOver').innerText = getText('gameOver');
+            document.getElementById('btnReplay').innerText = getText('btnReplay');
+            document.getElementById('lblSettings').innerText = getText('lblSettings');
+            document.getElementById('btnSaveGame').innerText = getText('btnSaveGame');
+            document.getElementById('btnCloseSet').innerText = getText('btnCloseSet');
+            updatePlayerSlots();
+            if (activePlayerIDs.length > 0) updateTurnIndicator(); 
+        }
+
+        function nextStep(step) {
+            SoundEngine.init(); 
+            document.querySelectorAll('.step-container').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step${step}`).classList.add('active');
+            if(step === 2) updatePlayerSlots();
+        }
+
+        if (localStorage.getItem('ashtaSave')) {
+            document.getElementById('btnLoadSave').style.display = 'block';
+        }
+
+        const playersInfo = {
+            1: { name: 'Blue', class: 'blue-player', color: '#3498db' },
+            2: { name: 'Yellow', class: 'yellow-player', color: '#f1c40f' },
+            3: { name: 'Red', class: 'red-player', color: '#e74c3c' },
+            4: { name: 'Green', class: 'green-player', color: '#2ecc71' }
+        };
+
+        function updatePlayerSlots() {
+            let count = parseInt(document.getElementById('playerCountSelect').value);
+            let activeIDs = count === 2 ? [1, 3] : count === 3 ? [1, 2, 3] : [1, 2, 3, 4];
+            let html = '';
+            activeIDs.forEach(id => {
+                let prevSel = document.getElementById(`type_${id}`) ? document.getElementById(`type_${id}`).value : 'HUMAN';
+                let selH = prevSel === 'HUMAN' ? 'selected' : '';
+                let selA = prevSel === 'AI' ? 'selected' : '';
+                html += `<div class="player-slot" style="background-color: ${playersInfo[id].color};">
+                    <strong>${getText('player')} ${id} (${getPlayerName(playersInfo[id].name)})</strong>
+                    <select id="type_${id}"><option value="HUMAN" ${selH}>${getText('human')}</option><option value="AI" ${selA}>${getText('ai')}</option></select>
+                </div>`;
+            });
+            document.getElementById('playerConfigs').innerHTML = html;
+        }
+
+        // --- ENGINE VARIABLES ---
+        let activePlayerIDs = [], currentPlayerIndex = 0, activePlayer = 1, playerTypes = {}, gameMode = 'KIDS';
+        let currentPhase = 'ROLL', currentScore = 0, originalScore = 0, killHappened = false, leaderboard = [], eliminated = [], tokens = [];
+        let turnTimerInterval = null, isArrowPause = false;
+
+        const gridLayout = [[0,0,1,0,0],[0,0,0,0,0],[1,0,2,0,1],[0,0,0,0,0],[0,0,1,0,0]];
+        const paths = {
+            1: [[2,4],[3,4],[4,4],[4,3],[4,2],[4,1],[4,0],[3,0],[2,0],[1,0],[0,0],[0,1],[0,2],[0,3],[0,4],[1,4], [1,3],[1,2],[1,1],[2,1],[3,1],[3,2],[3,3],[2,3], [2,2]],
+            2: [[4,2],[4,1],[4,0],[3,0],[2,0],[1,0],[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,4],[3,4],[4,4],[4,3], [3,3],[2,3],[1,3],[1,2],[1,1],[2,1],[3,1],[3,2], [2,2]],
+            3: [[2,0],[1,0],[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,4],[3,4],[4,4],[4,3],[4,2],[4,1],[4,0],[3,0], [3,1],[3,2],[3,3],[2,3],[1,3],[1,2],[1,1],[2,1], [2,2]],
+            4: [[0,2],[0,3],[0,4],[1,4],[2,4],[3,4],[4,4],[4,3],[4,2],[4,1],[4,0],[3,0],[2,0],[1,0],[0,0],[0,1], [1,1],[2,1],[3,1],[3,2],[3,3],[2,3],[1,3],[1,2], [2,2]]
+        };
+
+        const boardElement = document.getElementById('board');
+        const rollResult = document.getElementById('rollResult');
+
+        function getCoords(token) { return paths[token.player][token.step]; }
+
+        function initBoard() {
+            boardElement.innerHTML = '<div id="centerOverlay"></div>';
+            for (let y = 0; y < 5; y++) {
+                for (let x = 0; x < 5; x++) {
+                    const sq = document.createElement('div'); sq.classList.add('square');
+                    if (gridLayout[y][x] === 1) sq.classList.add('safe');
+                    if (gridLayout[y][x] === 2) sq.classList.add('center');
+                    boardElement.appendChild(sq);
+                }
+            }
+        }
+
+        function startGame() {
+            SoundEngine.init();
+            currentLang = document.getElementById('langSelect').value;
+            gameMode = document.getElementById('gameModeSelect').value;
+            let count = parseInt(document.getElementById('playerCountSelect').value);
+            activePlayerIDs = count === 2 ? [1, 3] : count === 3 ? [1, 2, 3] : [1, 2, 3, 4];
+            
+            activePlayerIDs.forEach(id => { playerTypes[id] = document.getElementById(`type_${id}`).value; });
+            if (gameMode === 'PRO') document.getElementById('deadBoxContainer').style.display = 'block';
+
+            eliminated = []; leaderboard = [];
+            initBoard();
+            tokens = [];
+            activePlayerIDs.forEach(p => {
+                for(let i = 0; i < 4; i++) {
+                    let el = document.createElement('div'); el.classList.add('token', playersInfo[p].class);
+                    tokens.push({ id: `p${p}_${i}`, player: p, step: 0, hasKilled: false, element: el, isFinished: false, isJodi: false, isMerged: false, isDead: false, revolutionsLeft: 0 });
+                }
+            });
+            startEngine();
+        }
+
+        function startEngine() {
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            
+            document.getElementById('boardWrapper').className = (activePlayerIDs.length === 2) ? 'two-player-mode' : '';
+            [1, 2, 3, 4].forEach(id => { document.getElementById(`panel-${id}`).style.display = activePlayerIDs.includes(id) ? 'flex' : 'none'; });
+            
+            drawTokens();
+            currentPlayerIndex = activePlayerIDs.indexOf(activePlayer) > -1 ? activePlayerIDs.indexOf(activePlayer) : 0;
+            activePlayer = activePlayerIDs[currentPlayerIndex];
+            updateTurnIndicator(); checkAITurn();
+        }
+
+        function saveGame() {
+            const state = { activePlayerIDs, currentPlayerIndex, activePlayer, playerTypes, gameMode, currentPhase, currentScore, originalScore, leaderboard, eliminated, currentLang,
+                tokensData: tokens.map(t => ({ id: t.id, player: t.player, step: t.step, hasKilled: t.hasKilled, isFinished: t.isFinished, isJodi: t.isJodi, isMerged: t.isMerged, isDead: t.isDead, revs: t.revolutionsLeft }))
+            };
+            localStorage.setItem('ashtaSave', JSON.stringify(state));
+            alert("Game Saved Successfully!");
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function loadGame() {
+            SoundEngine.init();
+            const state = JSON.parse(localStorage.getItem('ashtaSave'));
+            if(!state) return;
+            activePlayerIDs = state.activePlayerIDs; currentPlayerIndex = state.currentPlayerIndex; activePlayer = state.activePlayer;
+            playerTypes = state.playerTypes; gameMode = state.gameMode; currentPhase = state.currentPhase; currentScore = state.currentScore;
+            originalScore = state.originalScore; leaderboard = state.leaderboard; eliminated = state.eliminated || [];
+            currentLang = state.currentLang || 'EN';
+            
+            document.getElementById('langSelect').value = currentLang;
+            updateUI();
+            
+            if (gameMode === 'PRO') document.getElementById('deadBoxContainer').style.display = 'block';
+            initBoard();
+            
+            tokens = state.tokensData.map(t => {
+                let el = document.createElement('div'); el.classList.add('token', playersInfo[t.player].class);
+                if(t.isJodi) el.innerText = '★';
+                return { id: t.id, player: t.player, step: t.step, hasKilled: t.hasKilled, isFinished: t.isFinished, isJodi: t.isJodi, isMerged: t.isMerged, isDead: t.isDead, revolutionsLeft: t.revs, element: el };
+            });
+
+            leaderboard.forEach((p, idx) => {
+                let ranks = ['🥇', '🥈', '🥉'];
+                let badge = document.getElementById(`badge-${p}`);
+                if (badge && ranks[idx]) { badge.style.display = 'block'; badge.innerText = ranks[idx]; }
+            });
+            startEngine();
+        }
+
+        function openSettings() {
+            let html = `<div class="settings-row" style="margin-bottom: 20px; justify-content: center; gap: 15px;">
+                <span style="font-size: 20px;">${masterVolume === 0 ? '🔇' : '🔊'} ${getText('volume')}</span>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="${masterVolume}" onchange="updateVolume(this.value)" oninput="updateVolume(this.value)">
+            </div>`;
+
+            activePlayerIDs.forEach(id => {
+                let typeStr = playerTypes[id] === 'AI' ? getText('ai') : getText('human');
+                let toggleAction = playerTypes[id] === 'AI' ? `changePlayerType(${id}, 'HUMAN')` : `changePlayerType(${id}, 'AI')`;
+                html += `<div class="settings-row">
+                    <span>${getText('player')} ${id} [${typeStr}]</span>
+                    <div>
+                        <button class="btn-ai" onclick="${toggleAction}">${getText('swap')}</button>
+                        <button class="btn-remove" onclick="removePlayer(${id})">${getText('remove')}</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('settingsPlayerList').innerHTML = html;
+            document.getElementById('settingsModal').style.display = 'block';
+        }
+
+        function changePlayerType(id, type) { playerTypes[id] = type; openSettings(); if(id === activePlayer) updateTurnIndicator(); }
+        function removePlayer(id) {
+            if(activePlayerIDs.length <= 2) { alert("Cannot have fewer than 2 players!"); return; }
+            activePlayerIDs = activePlayerIDs.filter(p => p !== id);
+            tokens = tokens.filter(t => t.player !== id);
+            document.getElementById(`panel-${id}`).style.display = 'none';
+            if(activePlayer === id) switchTurn(); else { drawTokens(); openSettings(); }
+            document.getElementById('boardWrapper').className = (activePlayerIDs.length === 2) ? 'two-player-mode' : '';
+        }
+
+        function drawTokens() {
+            let squares = Array.from(boardElement.children).filter(el => el.classList.contains('square'));
+            squares.forEach(sq => { Array.from(sq.children).forEach(c => { if(c.classList.contains('token')) sq.removeChild(c); }); });
+            document.getElementById('deadBox').innerHTML = '';
+
+            let squareCounts = {};
+            tokens.forEach(t => {
+                if (t.isMerged || t.isFinished) return;
+                t.element.onclick = (e) => handleTokenClick(t, e);
+                t.element.classList.remove('crowded');
+                if (t.isDead) document.getElementById('deadBox').appendChild(t.element);
+                else { 
+                    let sqIndex = (paths[t.player][t.step][1] * 5) + paths[t.player][t.step][0];
+                    squares[sqIndex].appendChild(t.element);
+                    squareCounts[sqIndex] = (squareCounts[sqIndex] || 0) + 1;
+                }
+            });
+
+            Object.keys(squareCounts).forEach(sqIdx => {
+                if (squareCounts[sqIdx] > 4) {
+                    Array.from(squares[sqIdx].children).forEach(c => { if(c.classList.contains('token')) c.classList.add('crowded'); });
+                }
+            });
+        }
+
+        function updateTurnIndicator() {
+            [1, 2, 3, 4].forEach(id => {
+                let panel = document.getElementById(`panel-${id}`);
+                if (panel) { panel.classList.remove('active'); document.getElementById(`roll-btn-${id}`).style.display = 'none'; document.getElementById(`roll-num-${id}`).style.display = 'none'; document.getElementById(`jodi-btn-${id}`).style.display = 'none'; }
+            });
+
+            let pnl = document.getElementById(`panel-${activePlayer}`);
+            if (pnl) {
+                pnl.classList.add('active');
+                if (currentPhase === 'ROLL') {
+                    let rBtn = document.getElementById(`roll-btn-${activePlayer}`); rBtn.style.display = 'flex';
+                    rBtn.className = playerTypes[activePlayer] === 'AI' ? 'kodi-btn roll-btn' : 'kodi-btn roll-btn enabled blink-roll';
+                }
+            }
+            
+            if (playerTypes[activePlayer] === 'AI') {
+                clearTurnTimer(); rollResult.innerText = getText('compRoll');
+            } else if (currentPhase === 'ROLL') {
+                rollResult.innerText = getText('tapRoll');
+                startTurnTimer(20, () => { executeRoll(); });
+            }
+        }
+
+        function switchTurn() {
+            do { 
+                currentPlayerIndex++; 
+                if (currentPlayerIndex >= activePlayerIDs.length) currentPlayerIndex = 0; 
+                activePlayer = activePlayerIDs[currentPlayerIndex]; 
+            } while (leaderboard.includes(activePlayer) || eliminated.includes(activePlayer));
+            updateTurnIndicator(); checkAITurn();
+        }
+
+        function checkAITurn() {
+            if (playerTypes[activePlayer] === 'AI' && currentPhase === 'ROLL') setTimeout(() => { executeRoll(); }, 1000); 
+        }
+
+        function startTurnTimer(seconds, autoActionCallback) {
+            clearTurnTimer();
+            let pnl = document.getElementById(`panel-${activePlayer}`); pnl.classList.add('timer-active');
+            let ol = document.createElement('div'); ol.id = 'timerOverlay'; ol.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:15; border-radius: 25px; overflow: hidden;';
+            ol.innerHTML = `<svg width="100%" height="100%"><rect id="timerRect" x="0" y="0" width="100%" height="100%" rx="25" ry="25" fill="none" stroke="${playersInfo[activePlayer].color}" stroke-width="8" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" style="transition: linear 1s;" /></svg>`;
+            pnl.appendChild(ol);
+            
+            let timeLeft = seconds;
+            turnTimerInterval = setInterval(() => {
+                timeLeft--;
+                let r = document.getElementById('timerRect');
+                if(r) { r.style.strokeDashoffset = 100 - (100 * (timeLeft / seconds)); if(timeLeft<=10) r.classList.add('timer-blink'); }
+                if(timeLeft <= 0) { clearTurnTimer(); autoActionCallback(); }
+            }, 1000);
+        }
+        function clearTurnTimer() { if(turnTimerInterval) clearInterval(turnTimerInterval); let o = document.getElementById('timerOverlay'); if(o) o.remove(); document.querySelectorAll('.player-panel').forEach(p=>p.classList.remove('timer-active')); }
+
+        function executeRoll() {
+            if (currentPhase !== 'ROLL') return;
+            currentPhase = 'ANIMATING_ROLL'; clearTurnTimer();
+            SoundEngine.init(); SoundEngine.playRoll();
+            
+            const btn = document.getElementById(`roll-btn-${activePlayer}`); const num = document.getElementById(`roll-num-${activePlayer}`);
+            const kodis = btn.querySelectorAll('.kodi');
+            num.style.display = 'none'; btn.classList.add('roll-active'); btn.classList.remove('blink-roll');
+
+            let si = setInterval(() => { kodis.forEach(k => k.className = Math.random() > 0.5 ? 'kodi open' : 'kodi closed'); }, 80);
+
+            setTimeout(() => {
+                clearInterval(si); let open = 0;
+                kodis.forEach(k => { if(Math.random()<0.5) { open++; k.className='kodi open'; } else k.className='kodi closed'; });
+                currentScore = open === 0 ? 8 : open; originalScore = currentScore; 
+
+                btn.classList.remove('roll-active');
+                setTimeout(() => {
+                    btn.style.display = 'none'; num.innerHTML = `${currentScore}`; num.style.display = 'flex';
+                    num.classList.remove('pop-anim'); void num.offsetWidth; num.classList.add('pop-anim');
+                    currentPhase = 'MOVE'; killHappened = false; evaluateMoves();
+                }, 300);
+            }, 800);
+        }
+        document.querySelectorAll('.roll-btn').forEach(btn => btn.addEventListener('click', executeRoll));
+
+        function evaluateMoves() {
+            let options = [];
+            tokens.forEach(t => t.element.classList.remove('clickable'));
+            document.querySelectorAll('.jodi-action-btn').forEach(b => b.style.display='none');
+
+            tokens.forEach(t => {
+                if (t.player === activePlayer && !t.isFinished && !t.isMerged && !t.isDead) {
+                    if (t.isJodi && currentScore % 2 !== 0) return; 
+                    if (t.hasKilled && t.step >= 16 && t.revolutionsLeft === 0 && (t.step + (t.isJodi ? currentScore/2 : currentScore)) > 24) return; 
+                    t.element.classList.add('clickable'); options.push(t.element);
+                }
+            });
+
+            if (gameMode === 'PRO' && currentScore >= 4) {
+                tokens.forEach(t => { if (t.player === activePlayer && t.isDead && !t.isMerged) { t.element.classList.add('clickable'); options.push(t.element); } });
+            }
+
+            let eJodi = tokens.filter(t => t.player === activePlayer && t.step === 0 && !t.isJodi && !t.isMerged && !t.isDead);
+            if (currentScore > 0 && currentScore % 2 === 0 && eJodi.length >= 2) {
+                let jBtn = document.getElementById(`jodi-btn-${activePlayer}`); jBtn.style.display = 'flex'; options.push(jBtn);
+            }
+
+            if (options.length === 0) {
+                rollResult.innerText += getText('noMoves'); setTimeout(() => { currentPhase = 'ROLL'; switchTurn(); }, 1500);
+            } else {
+                rollResult.innerText = getText('action');
+                
+                if (options.length === 1 && playerTypes[activePlayer] === 'HUMAN') {
+                    rollResult.innerText += getText('auto');
+                    setTimeout(() => { if (currentPhase === 'MOVE') options[0].click(); }, 600);
+                } else if (playerTypes[activePlayer] === 'AI') {
+                    setTimeout(() => { if (currentPhase === 'MOVE') options[Math.floor(Math.random() * options.length)].click(); }, 1000);
+                } else {
+                    startTurnTimer(30, () => { if (currentPhase === 'MOVE') options[Math.floor(Math.random() * options.length)].click(); });
+                }
+                
+                if(originalScore !== currentScore) {
+                    let nbox = document.getElementById(`roll-num-${activePlayer}`);
+                    nbox.innerHTML = `${currentScore}<br><span class="rem-roll">Left</span>`;
+                }
+            }
+        }
+
+        function checkLockdownRule() {
+            let active = activePlayerIDs.filter(id => !leaderboard.includes(id) && !eliminated.includes(id));
+            
+            active.forEach(p => {
+                let hasNeverKilled = !tokens.find(t => t.player === p && t.hasKilled);
+                if (hasNeverKilled) {
+                    let targetsLeft = tokens.filter(t => t.player !== p && !t.isFinished && !t.isDead && t.step < 16);
+                    if (targetsLeft.length === 0) { declareLoser(p); }
+                }
+            });
+        }
+
+        function declareLoser(p) {
+            SoundEngine.playLoser();
+            let panel = document.getElementById(`panel-${p}`);
+            if (panel) panel.classList.add('looser-anim');
+            rollResult.innerText = "Eliminated! No targets left.";
+            
+            if (!eliminated.includes(p)) eliminated.push(p);
+            
+            let active = activePlayerIDs.filter(id => !leaderboard.includes(id) && !eliminated.includes(id));
+            if (active.length <= 1) {
+                if (active.length === 1 && !leaderboard.includes(active[0])) leaderboard.push(active[0]);
+                eliminated.reverse().forEach(e => leaderboard.push(e));
+                
+                document.getElementById('gameOverScreen').style.display = 'flex';
+                let ranks = ['🥇', '🥈', '🥉', '👎'];
+                let html = ""; 
+                leaderboard.forEach((pl,i) => html+=`<li>${ranks[i]||'👎'}: ${getPlayerName(playersInfo[pl].name)}</li>`);
+                document.getElementById('leaderboardList').innerHTML = html;
+            } else {
+                if(activePlayer === p) switchTurn();
+            }
+        }
+
+        function handleEndMove(msg) {
+            rollResult.innerText = msg; drawTokens();
+            checkLockdownRule(); 
+
+            if (originalScore === 4 || originalScore === 8 || killHappened) {
+                currentPhase = 'ROLL';
+                if(playerTypes[activePlayer] === 'AI') checkAITurn();
+                else { 
+                    document.getElementById(`roll-num-${activePlayer}`).style.display='none'; 
+                    let btn=document.getElementById(`roll-btn-${activePlayer}`); 
+                    btn.style.display='flex'; 
+                    btn.classList.add('enabled','blink-roll'); 
+                    startTurnTimer(20, executeRoll); 
+                }
+            } else { currentPhase = 'ROLL'; switchTurn(); }
+        }
+
+        document.querySelectorAll('.jodi-action-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+            if(currentPhase !== 'MOVE') return; if(playerTypes[activePlayer]==='AI' && e.isTrusted) return;
+            clearTurnTimer(); currentPhase = 'ANIMATING'; SoundEngine.playJodi();
+            let eJodi = tokens.filter(t => t.player === activePlayer && t.step === 0 && !t.isJodi && !t.isMerged && !t.isDead);
+            if(eJodi.length >= 2) {
+                let t1 = eJodi[0], t2 = eJodi[1];
+                t1.isJodi = true; t1.element.innerText = '★'; t2.isMerged = true;
+                document.getElementById(`jodi-btn-${activePlayer}`).style.display='none'; tokens.forEach(t=>t.element.classList.remove('clickable'));
+                
+                let dist = currentScore/2; currentScore = 0; let seq = []; for(let i=1; i<=dist; i++) seq.push(i);
+                for(let s of seq) { t1.step=s; t2.step=s; drawTokens(); SoundEngine.playHop(); t1.element.classList.add('hopping'); await new Promise(r=>setTimeout(r, 250)); t1.element.classList.remove('hopping'); }
+                checkTileKill(t1, getText('jodiFormed'));
+            }
+        }));
+
+        function promptPathChoice(token, moveDistance, oldStep, newStep, isAutoClick) {
+            return new Promise(resolve => {
+                if(playerTypes[activePlayer] === 'AI' || isAutoClick) {
+                    resolve(Math.random() < 0.9); return;
+                }
+                const c1 = paths[activePlayer][oldStep]; const c2 = paths[activePlayer][oldStep + 1]; const bypassCoords = paths[activePlayer][oldStep === 23 ? 16 : 0]; 
+                let arrowContainer = document.getElementById('arrowContainer');
+                let squares = Array.from(boardElement.children).filter(el => el.classList.contains('square'));
+                let arrowEnter = document.createElement('div'); arrowEnter.className = 'arrow-overlay'; arrowEnter.innerHTML = '↱';
+                let arrowBypass = document.createElement('div'); arrowBypass.className = 'arrow-overlay'; arrowBypass.innerHTML = '↻';
+                let sqEnter = squares[(c2[1] * 5) + c2[0]]; let sqBypass = squares[(bypassCoords[1] * 5) + bypassCoords[0]];
+                sqEnter.appendChild(arrowEnter); sqBypass.appendChild(arrowBypass);
+                
+                arrowEnter.onclick = () => { sqEnter.removeChild(arrowEnter); sqBypass.removeChild(arrowBypass); resolve(true); };
+                arrowBypass.onclick = () => { sqEnter.removeChild(arrowEnter); sqBypass.removeChild(arrowBypass); resolve(false); };
+                clearTurnTimer();
+            });
+        }
+
+        async function handleTokenClick(token, e) {
+            if(currentPhase !== 'MOVE' || token.player !== activePlayer || token.isFinished || token.isMerged) return;
+            if(!token.element.classList.contains('clickable')) return;
+            if(playerTypes[activePlayer]==='AI' && e && e.isTrusted) return;
+
+            clearTurnTimer(); currentPhase = 'ANIMATING';
+            tokens.forEach(t=>t.element.classList.remove('clickable')); document.getElementById(`jodi-btn-${activePlayer}`).style.display='none';
+
+            if(token.isDead) {
+                token.isDead=false; token.step=0; currentScore-=4; drawTokens(); SoundEngine.playHop();
+                if(currentScore>0) { currentPhase='MOVE'; evaluateMoves(); } else handleEndMove(getText('revived'));
+                return;
+            }
+
+            let pathSequence = [], dist = token.isJodi ? (currentScore/2) : currentScore;
+            let oldStep = token.step, newStep = oldStep + dist, msg = "", isAuto = e ? !e.isTrusted : true;
+            currentScore = 0;
+
+            if(!token.hasKilled && newStep >= 16) {
+                for(let i=oldStep+1; i<=15; i++) pathSequence.push(i); pathSequence.push(newStep%16); msg = getText('bounced');
+            } else if (token.hasKilled && oldStep >= 16) {
+                if(token.revolutionsLeft > 0) {
+                    let temp = oldStep;
+                    for(let i=0; i<dist; i++) { temp++; if(temp===24){ temp=16; token.revolutionsLeft = Math.max(0, token.revolutionsLeft-1); } pathSequence.push(temp); }
+                    msg = token.revolutionsLeft>0 ? getText('revolving').replace('...', token.revolutionsLeft) : getText('cleared');
+                } else {
+                    if (newStep === 24) {
+                        let wantCenter = await promptPathChoice(token, dist, oldStep, newStep, isAuto);
+                        if (!wantCenter) {
+                            for(let i=oldStep+1; i<=23; i++) pathSequence.push(i); pathSequence.push(16);
+                            token.revolutionsLeft = 7; msg = getText('bypassed');
+                        } else { for(let i=oldStep+1; i<=24; i++) pathSequence.push(i); }
+                    } else if (newStep > 24) msg = getText('overshot');
+                    else { for(let i=oldStep+1; i<=newStep; i++) pathSequence.push(i); }
+                }
+            } else { for(let i=oldStep+1; i<=newStep; i++) pathSequence.push(i); }
+
+            let buddy = token.isJodi ? tokens.find(t=>t.player===activePlayer && t.isMerged && t.step===oldStep) : null;
+            for(let s of pathSequence) {
+                token.step=s; if(buddy) buddy.step=s; drawTokens(); SoundEngine.playHop();
+                token.element.classList.add('hopping'); if(buddy) buddy.element.classList.add('hopping');
+                await new Promise(r=>setTimeout(r, 250));
+                token.element.classList.remove('hopping'); if(buddy) buddy.element.classList.remove('hopping');
+            }
+
+            if(token.step === 24) {
+                token.isFinished = true; msg = getText('reached'); SoundEngine.playVictory();
+                let co = document.getElementById('centerOverlay'); co.innerText = '🎊'; co.classList.remove('celebrate-anim'); void co.offsetWidth; co.classList.add('celebrate-anim');
+
+                if(token.isJodi) tokens.forEach(t=>{if(t.player===activePlayer&&t.isMerged&&t.step===24) t.isFinished=true;});
+                if(tokens.filter(t=>t.player===activePlayer).every(t=>t.isFinished)) {
+                    leaderboard.push(activePlayer);
+                    let ranks = ['🥇', '🥈', '🥉', '👎'];
+                    let badge = document.getElementById(`badge-${activePlayer}`);
+                    if (badge) { badge.style.display = 'block'; badge.innerText = ranks[leaderboard.length-1]; }
+                    
+                    let active = activePlayerIDs.filter(id => !leaderboard.includes(id) && !eliminated.includes(id));
+                    if(active.length <= 1) {
+                        if(active.length === 1) eliminated.unshift(active[0]);
+                        eliminated.forEach(e => { if(!leaderboard.includes(e)) leaderboard.push(e); });
+                        
+                        document.getElementById('gameOverScreen').style.display = 'flex';
+                        let html = ""; leaderboard.forEach((pl,i)=>html+=`<li>${ranks[i]||'👎'}: ${getPlayerName(playersInfo[pl].name)}</li>`);
+                        document.getElementById('leaderboardList').innerHTML = html; return;
+                    }
+                }
+            }
+            checkTileKill(token, msg);
+        }
+
+        function checkTileKill(t1, baseMsg) {
+            let myCoords = getCoords(t1), tileType = gridLayout[myCoords[1]][myCoords[0]];
+            let msg = baseMsg;
+            if(t1.step !== 24 && tileType === 0) {
+                let enemiesHere = tokens.filter(o => !o.isFinished && !o.isDead && o.step !== 24 && o.player !== activePlayer && getCoords(o)[0] === myCoords[0] && getCoords(o)[1] === myCoords[1]);
+                
+                if (enemiesHere.length > 0) {
+                    let target = enemiesHere[0]; 
+                    if (!t1.isJodi && target.isJodi) {
+                        // Safe!
+                    } else {
+                        SoundEngine.playKill();
+                        let oldStep = target.step; target.step = 0; if (gameMode === 'PRO') target.isDead = true;
+                        if (target.isJodi) {
+                            target.isJodi = false; target.element.innerText = '';
+                            let buddy = tokens.find(t=>t.player===target.player && t.isMerged && t.step===oldStep);
+                            if(buddy) { buddy.isMerged = false; buddy.step = 0; if(gameMode==='PRO') buddy.isDead=true; }
+                        }
+                        t1.hasKilled = true; killHappened = true; msg = (msg ? msg + " | " : "") + getText('kill');
+                        tokens.filter(t=>t.player===activePlayer).forEach(t=>t.hasKilled = true);
+                        
+                        let co = document.getElementById('centerOverlay'); co.innerText = '👏👏👏'; co.classList.remove('celebrate-anim'); void co.offsetWidth; co.classList.add('celebrate-anim');
+                    }
+                }
+            }
+            handleEndMove(msg);
+        }
+    </script>
+</body>
+</html>
