@@ -1,0 +1,15 @@
+{
+  "name": "Ashta Changa",
+  "short_name": "Ashta",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1e272e",
+  "theme_color": "#1e272e",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
